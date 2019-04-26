@@ -18,7 +18,7 @@
         _locationManager = [CLLocationManager new];
         _locationManager.delegate = self;
     }
-    
+
     return self;
 }
 
@@ -32,28 +32,15 @@
 
 - (void)requestPermission:(PermissionGroup)permission completionHandler:(PermissionStatusHandler)completionHandler {
     PermissionStatus status = [self checkPermissionStatus:permission];
-    if ([CLLocationManager authorizationStatus] == kCLAuthorizationStatusAuthorizedWhenInUse && permission == PermissionGroupLocationAlways) {
-        // don't do anything and continue requesting permissions
-    } else if (status != PermissionStatusUnknown) {
-        completionHandler(status);
-    }
-    
+
     _permissionStatusHandler = completionHandler;
     _requestedPermission = permission;
-    
+
     if (permission == PermissionGroupLocation) {
-        if ([[NSBundle mainBundle] objectForInfoDictionaryKey:@"NSLocationAlwaysUsageDescription"] != nil) {
-            [_locationManager requestAlwaysAuthorization];
-        } else if ([[NSBundle mainBundle] objectForInfoDictionaryKey:@"NSLocationWhenInUseUsageDescription"] != nil) {
+        if ([[NSBundle mainBundle] objectForInfoDictionaryKey:@"NSLocationWhenInUseUsageDescription"] != nil) {
             [_locationManager requestWhenInUseAuthorization];
         } else {
             [[NSException exceptionWithName:NSInternalInconsistencyException reason:@"To use location in iOS8 you need to define either NSLocationWhenInUseUsageDescription or NSLocationAlwaysUsageDescription in the app bundle's Info.plist file" userInfo:nil] raise];
-        }
-    } else if (permission == PermissionGroupLocationAlways) {
-        if ([[NSBundle mainBundle] objectForInfoDictionaryKey:@"NSLocationAlwaysUsageDescription"] != nil) {
-            [_locationManager requestAlwaysAuthorization];
-        } else {
-            [[NSException exceptionWithName:NSInternalInconsistencyException reason:@"To use location in iOS8 you need to define NSLocationAlwaysUsageDescription in the app bundle's Info.plist file" userInfo:nil] raise];
         }
     } else if (permission == PermissionGroupLocationWhenInUse) {
         if ([[NSBundle mainBundle] objectForInfoDictionaryKey:@"NSLocationWhenInUseUsageDescription"] != nil) {
@@ -76,50 +63,36 @@
     if (status == kCLAuthorizationStatusNotDetermined) {
         return;
     }
-    
+
     if (_permissionStatusHandler == nil || @(_requestedPermission) == nil) {
         return;
     }
-    
+
     PermissionStatus permissionStatus = [LocationPermissionStrategy
                                          determinePermissionStatus:_requestedPermission authorizationStatus:status];
-    
+
     _permissionStatusHandler(permissionStatus);
 }
 
 
 + (PermissionStatus)permissionStatus:(PermissionGroup)permission {
     CLAuthorizationStatus authorizationStatus = [CLLocationManager authorizationStatus];
-    
-    
+
+
     PermissionStatus status = [LocationPermissionStrategy
                                determinePermissionStatus:permission authorizationStatus:authorizationStatus];
-    
+
     if ((status == PermissionStatusGranted || status == PermissionStatusDenied)
         && ![CLLocationManager locationServicesEnabled]) {
         return PermissionStatusDisabled;
     }
-    
+
     return status;
 }
 
 
 + (PermissionStatus)determinePermissionStatus:(PermissionGroup)permission authorizationStatus:(CLAuthorizationStatus)authorizationStatus {
     if (@available(iOS 8.0, *)) {
-        if (permission == PermissionGroupLocationAlways) {
-            switch (authorizationStatus) {
-                case kCLAuthorizationStatusNotDetermined:
-                    return PermissionStatusUnknown;
-                case kCLAuthorizationStatusRestricted:
-                    return PermissionStatusRestricted;
-                case kCLAuthorizationStatusDenied:
-                case kCLAuthorizationStatusAuthorizedWhenInUse:
-                    return PermissionStatusDenied;
-                case kCLAuthorizationStatusAuthorizedAlways:
-                    return PermissionStatusGranted;
-            }
-        }
-        
         switch (authorizationStatus) {
             case kCLAuthorizationStatusNotDetermined:
                 return PermissionStatusUnknown;
@@ -127,12 +100,11 @@
                 return PermissionStatusRestricted;
             case kCLAuthorizationStatusDenied:
                 return PermissionStatusDenied;
-            case kCLAuthorizationStatusAuthorizedAlways:
             case kCLAuthorizationStatusAuthorizedWhenInUse:
                 return PermissionStatusGranted;
         }
     }
-    
+
     switch (authorizationStatus) {
         case kCLAuthorizationStatusNotDetermined:
             return PermissionStatusUnknown;
